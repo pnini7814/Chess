@@ -1,4 +1,4 @@
-from pieces.piece_factory import PieceFactory
+from models.piece_factory import PieceFactory
 
 
 class BoardParser:

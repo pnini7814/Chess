@@ -1,4 +1,7 @@
-from models.piece import Piece
+from models.position import Position
+from models.piece import Piece, PieceColor, PieceState
+from models.board import Board
+from models.game_state import GameState
 from models.king import King
 from models.queen import Queen
 from models.rook import Rook

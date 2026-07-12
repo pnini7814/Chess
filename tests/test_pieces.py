@@ -3,13 +3,13 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import unittest
-from pieces.king import King
-from pieces.queen import Queen
-from pieces.rook import Rook
-from pieces.bishop import Bishop
-from pieces.knight import Knight
-from pieces.pawn import Pawn
-from pieces.piece_factory import PieceFactory
+from models.king import King
+from models.queen import Queen
+from models.rook import Rook
+from models.bishop import Bishop
+from models.knight import Knight
+from models.pawn import Pawn
+from models.piece_factory import PieceFactory
 
 
 EMPTY_BOARD = [["." for _ in range(8)] for _ in range(8)]
