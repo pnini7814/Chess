@@ -21,16 +21,48 @@ class RealTimeArbiter:
         piece.state = PieceState.MOVING
         self._active_motions.append(motion)
 
+    def start_jump(self, piece: Piece, pos: Position, current_time: int) -> None:
+        # הוסר ה-import המקומי המיותר מכאן
+        motion = Motion(
+            piece=piece, 
+            from_pos=pos, 
+            to_pos=pos,
+            start_time=current_time, 
+            arrival_time=current_time + 1000,
+            is_jump=True
+        )
+        self._active_motions.append(motion)
+
+    def is_piece_in_motion(self, pos: Position) -> bool:
+        return any(m.from_pos == pos and not m.is_jump for m in self._active_motions)
+
     def advance(self, current_time: int, board: Board) -> None:
-        remaining = []
-        for motion in self._active_motions:
-            if current_time >= motion.arrival_time:
-                self._resolve_arrival(motion, board)
-            else:
-                remaining.append(motion)
-        self._active_motions = remaining
+        # כאן כבר נעשה שימוש מעולה ב-List Comprehension כפי שה-Linter ביקש
+        arrived = [m for m in self._active_motions if current_time >= m.arrival_time]
+        self._active_motions = [m for m in self._active_motions if current_time < m.arrival_time]
+        
+        for motion in arrived:
+            self._resolve_arrival(motion, board)
+
+    def _is_airborne_capture(self, arriving: Motion) -> bool:
+        for jump in self._active_motions:
+            if not jump.is_jump:
+                continue
+            if jump.from_pos != arriving.to_pos:
+                continue
+            if jump.piece.color != arriving.piece.color:
+                return True
+        return False
 
     def _resolve_arrival(self, motion: Motion, board: Board) -> None:
+        if motion.is_jump:
+            return
+
+        if self._is_airborne_capture(motion):
+            board.remove_piece(motion.from_pos)
+            motion.piece.state = PieceState.IDLE
+            return
+
         board.remove_piece(motion.from_pos)
 
         target = board.get_piece(motion.to_pos)

@@ -52,5 +52,10 @@ class Piece(ABC):
     def state(self, new_state: PieceState) -> None:
         self._state = new_state
 
+    def __str__(self) -> str:
+        color_char = "w" if self._color == PieceColor.WHITE else "b"
+        kind_char = self.kind[0].upper() if self.kind != "knight" else "N"
+        return color_char + kind_char
+
     def __repr__(self) -> str:
         return f"Piece(id={self._id}, color={self._color.value}, kind={self.kind}, cell={self._cell}, state={self._state.value})"

@@ -3,169 +3,172 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import unittest
-from io import StringIO
-from board.board_parser import BoardParser
-from moves.move_validator import StandardMoveValidator
-from moves.move_factory import MoveFactory
-from moves.move_scheduler import MoveScheduler
-from commands.command_factory import CommandFactory
-from game.game_engine import GameEngine
+from models.board import Board
+from models.game_state import GameState
+from models.position import Position
+from models.piece_factory import PieceFactory
+from rules.rule_engine import RuleEngine
+from engine.game_engine import GameEngine
+from realtime.real_time_arbiter import RealTimeArbiter
+from input.controller import Controller
+from input.board_mapper import BoardMapper
 
 
-def run_game(input_text: str) -> str:
-    lines = input_text.strip().splitlines()
-    board = BoardParser().parse(lines)
-    engine = GameEngine(CommandFactory(
-        StandardMoveValidator(), MoveFactory(), MoveScheduler()
-    ))
-    captured = StringIO()
-    sys.stdout = captured
-    engine.run(lines, board)
-    sys.stdout = sys.__stdout__
-    return captured.getvalue()
+def make_board(pieces: dict, rows=8, cols=8) -> Board:
+    board = Board(rows=rows, cols=cols)
+    for (r, c), token in pieces.items():
+        piece = PieceFactory.from_token(token, Position(r, c))
+        board.add_piece(piece)
+    return board
 
 
-class TestGameEngineIntegration(unittest.TestCase):
+def make_engine():
+    return GameEngine(RuleEngine(), RealTimeArbiter())
 
-    def test_rook_moves_horizontally(self):
-        output = run_game("""
-Board:
-wR . . .
-. . . .
-. . . .
-. . . wK
-Commands:
-click 0 0
-click 200 0
-wait 1000
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[0], ". . wR .")
 
-    def test_pawn_promotion_white(self):
-        output = run_game("""
-Board:
-. . . .
-wP . . .
-. . . .
-. . . wK
-Commands:
-click 0 100
-click 0 0
-wait 250
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[0].split()[0], "wQ")
+class TestRuleEngine(unittest.TestCase):
 
-    def test_pawn_promotion_black(self):
-        output = run_game("""
-Board:
-. . . bK
-. . . .
-bP . . .
-. . . .
-Commands:
-click 0 200
-click 0 300
-wait 250
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[3].split()[0], "bQ")
+    def setUp(self):
+        self.engine = RuleEngine()
 
-    def test_game_over_stops_moves(self):
-        output = run_game("""
-Board:
-wR . bK .
-. . . .
-. . . .
-. . . wK
-Commands:
-click 0 0
-click 200 0
-wait 1000
-click 300 0
-click 300 100
-wait 500
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[0], ". . wR .")
-        self.assertEqual(lines[1], ". . . .")
+    def test_valid_rook_move(self):
+        board = make_board({(0, 0): "wR"})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 5))
+        self.assertTrue(result.is_valid)
 
-    def test_print_board_after_game_over(self):
-        output = run_game("""
-Board:
-wR bK . .
-. . . .
-. . . .
-. . . wK
-Commands:
-click 0 0
-click 100 0
-wait 1000
-print board
-""")
-        self.assertIn("wR", output)
+    def test_rook_blocked_by_piece(self):
+        board = make_board({(0, 0): "wR", (0, 3): "wP"})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 5))
+        self.assertFalse(result.is_valid)
 
-    def test_click_on_empty_does_nothing(self):
-        output = run_game("""
-Board:
-. . . .
-. wR . .
-. . . .
-. . . wK
-Commands:
-click 0 0
-click 100 100
-wait 1000
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[1].split()[1], "wR")
+    def test_friendly_destination_invalid(self):
+        board = make_board({(0, 0): "wR", (0, 5): "wP"})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 5))
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.reason, "friendly_destination")
 
-    def test_invalid_board_returns_no_output(self):
-        lines = ["Board:", "wR xX wK", "Commands:", "print board"]
-        board = BoardParser().parse(lines)
-        self.assertIsNone(board)
+    def test_empty_source_invalid(self):
+        board = make_board({})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 5))
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.reason, "empty_source")
 
-    def test_multiple_pieces_move_simultaneously(self):
-        output = run_game("""
-Board:
-wR . . .
-. . . .
-. . . .
-wB . . wK
-Commands:
-click 0 0
-click 300 0
-wait 1000
-print board
-""")
-        lines = output.strip().splitlines()
-        # הרוק זז ל-col 3 בשורה 0
-        self.assertEqual(lines[0], ". . . wR")
-        # הרץ נשאר במקומו בשורה 3
-        self.assertIn("wB", lines[3])
+    def test_outside_board_invalid(self):
+        board = make_board({(0, 0): "wR"})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 9))
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.reason, "outside_board")
 
-    def test_jump_prevents_airborne_capture(self):
-        output = run_game("""
-Board:
-. . . .
-. . . .
-. . . .
-wR . bR .
-Commands:
-jump 0 300
-click 200 300
-click 0 300
-wait 1000
-print board
-""")
-        lines = output.strip().splitlines()
-        self.assertEqual(lines[3].split()[0], "wR")
+    def test_illegal_piece_move(self):
+        board = make_board({(0, 0): "wR"})
+        result = self.engine.validate(board, Position(0, 0), Position(3, 3))
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.reason, "illegal_piece_move")
+
+    def test_capture_enemy(self):
+        board = make_board({(0, 0): "wR", (0, 5): "bP"})
+        result = self.engine.validate(board, Position(0, 0), Position(0, 5))
+        self.assertTrue(result.is_valid)
+
+    def test_knight_jumps_over_pieces(self):
+        board = make_board({(0, 0): "wN", (0, 1): "bP", (1, 0): "bP"})
+        result = self.engine.validate(board, Position(0, 0), Position(2, 1))
+        self.assertTrue(result.is_valid)
+
+
+class TestGameEngineRequestMove(unittest.TestCase):
+
+    def test_valid_move_accepted(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board)
+        engine = make_engine()
+        result = engine.request_move(state, Position(0, 0), Position(0, 5))
+        self.assertTrue(result.is_accepted)
+
+    def test_game_over_rejects_move(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board, game_over=True)
+        engine = make_engine()
+        result = engine.request_move(state, Position(0, 0), Position(0, 5))
+        self.assertFalse(result.is_accepted)
+        self.assertEqual(result.reason, "game_over")
+
+    def test_invalid_move_rejected(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board)
+        engine = make_engine()
+        result = engine.request_move(state, Position(0, 0), Position(3, 3))
+        self.assertFalse(result.is_accepted)
+
+    def test_wait_advances_time(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board)
+        engine = make_engine()
+        engine.wait(state, 500)
+        self.assertEqual(state.current_time, 500)
+
+    def test_king_captured_sets_game_over(self):
+        board = make_board({(0, 0): "wR", (0, 5): "bK"})
+        state = GameState(board=board)
+        engine = make_engine()
+        engine.request_move(state, Position(0, 0), Position(0, 5))
+        engine.wait(state, 10000)
+        self.assertTrue(state.game_over)
+
+    def test_request_jump_accepted(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board)
+        engine = make_engine()
+        result = engine.request_jump(state, Position(0, 0))
+        self.assertTrue(result.is_accepted)
+
+    def test_request_jump_empty_cell_rejected(self):
+        board = make_board({})
+        state = GameState(board=board)
+        engine = make_engine()
+        result = engine.request_jump(state, Position(0, 0))
+        self.assertFalse(result.is_accepted)
+        self.assertEqual(result.reason, "empty_source")
+
+
+class TestController(unittest.TestCase):
+
+    def setUp(self):
+        self.board = make_board({(0, 0): "wR"}, rows=4, cols=4)
+        self.state = GameState(board=self.board)
+        self.engine = make_engine()
+        self.mapper = BoardMapper(rows=4, cols=4)
+        self.controller = Controller(self.engine, self.mapper)
+
+    def test_click_selects_piece(self):
+        self.controller.on_click(self.state, 0, 0)
+        self.assertTrue(self.state.has_selection())
+        self.assertEqual(self.state.selected, Position(0, 0))
+
+    def test_click_empty_cell_no_selection(self):
+        self.controller.on_click(self.state, 100, 0)
+        self.assertFalse(self.state.has_selection())
+
+    def test_click_out_of_bounds_deselects(self):
+        self.controller.on_click(self.state, 0, 0)
+        self.controller.on_click(self.state, 9999, 9999)
+        self.assertFalse(self.state.has_selection())
+
+    def test_click_move_deselects(self):
+        self.controller.on_click(self.state, 0, 0)
+        self.controller.on_click(self.state, 300, 0)
+        self.assertFalse(self.state.has_selection())
+
+    def test_on_jump_accepted(self):
+        result_holder = []
+        original = self.engine.request_jump
+        def mock_jump(state, pos):
+            r = original(state, pos)
+            result_holder.append(r)
+            return r
+        self.engine.request_jump = mock_jump
+        self.controller.on_jump(self.state, 0, 0)
+        self.assertTrue(result_holder[0].is_accepted)
 
 
 if __name__ == "__main__":

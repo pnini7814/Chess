@@ -13,6 +13,7 @@ class Motion:
     to_pos: Position
     start_time: int
     arrival_time: int
+    is_jump: bool = False
 
     @staticmethod
     def compute_duration(from_pos: Position, to_pos: Position) -> int:
