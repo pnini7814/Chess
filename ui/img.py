@@ -1,16 +1,21 @@
-
-
-
 import cv2
 import numpy as np
-
+from pathlib import Path
 
 class Img:
     def __init__(self, img=None):
         self.img = img
 
     def read(self, path, size=None, keep_aspect=True):
-        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Could not load image: {path}")
+
+        img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+        if img is None:
+            data = path.read_bytes()
+            img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_UNCHANGED)
+
         if img is None:
             raise FileNotFoundError(f"Could not load image: {path}")
 

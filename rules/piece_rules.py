@@ -78,11 +78,11 @@ class KingRule(PieceRule):
                     destinations.add(pos)
         return destinations
 
-
 class PawnRule(PieceRule):
 
     def legal_destinations(self, board: Board, piece: Piece) -> set[Position]:
         from models.piece import PieceColor
+
         destinations = set()
         direction = -1 if piece.color == PieceColor.WHITE else 1
         row, col = piece.cell.row, piece.cell.col
@@ -90,6 +90,12 @@ class PawnRule(PieceRule):
         forward = Position(row + direction, col)
         if board.is_within_bounds(forward) and board.get_piece(forward) is None:
             destinations.add(forward)
+
+            # double step from starting row
+            start_row = 6 if piece.color == PieceColor.WHITE else 1
+            two_steps = Position(row + 2 * direction, col)
+            if row == start_row and board.is_within_bounds(two_steps) and board.get_piece(two_steps) is None:
+                destinations.add(two_steps)
 
         for dc in [-1, 1]:
             capture = Position(row + direction, col + dc)

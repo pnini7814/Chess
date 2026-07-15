@@ -25,17 +25,16 @@ class GameEngine:
         if state.game_over:
             return MoveResult(is_accepted=False, reason="game_over")
 
-        if self._arbiter.has_active_motion():
-            return MoveResult(is_accepted=False, reason="motion_in_progress")
-
         validation = self._rule_engine.validate(state.board, from_pos, to_pos)
         if not validation.is_valid:
             return MoveResult(is_accepted=False, reason=validation.reason)
 
         piece = state.board.get_piece(from_pos)
+        if piece is None:
+            return MoveResult(is_accepted=False, reason="empty_source")
+
         self._arbiter.start_motion(piece, from_pos, to_pos, state.current_time)
         return MoveResult(is_accepted=True, reason="ok")
-
     def wait(self, state: GameState, ms: int) -> None:
         state.current_time += ms
         try:

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from models.piece import Piece
 from models.position import Position
 
-CELL_SIZE = 100
+CELL_SIZE = 75
 PIECE_SPEED = 100
 
 
