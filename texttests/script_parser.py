@@ -13,17 +13,11 @@ class WaitCommand:
 
 
 @dataclass(frozen=True)
-class JumpCommand:
-    x: int
-    y: int
-
-
-@dataclass(frozen=True)
 class PrintBoardCommand:
     expected_lines: tuple[str, ...]
 
 
-ScriptCommand = ClickCommand | WaitCommand | JumpCommand | PrintBoardCommand
+ScriptCommand = ClickCommand | WaitCommand | PrintBoardCommand
 
 
 @dataclass(frozen=True)
@@ -46,8 +40,8 @@ class ScriptParser:
         while i < len(lines) and lines[i].strip() != "Board:":
             i += 1
         i += 1
-        while i < len(lines) and lines[i].strip() not in ("Commands:", "click", "wait", "print", "jump") \
-                and not lines[i].strip().startswith(("click ", "wait ", "print ", "jump ")):
+        while i < len(lines) and lines[i].strip() not in ("click", "wait", "print") \
+                and not lines[i].strip().startswith(("click ", "wait ", "print ")):
             board_lines.append(lines[i].strip())
             i += 1
         board_lines = [l for l in board_lines if l]
@@ -63,14 +57,11 @@ class ScriptParser:
                 commands.append(ClickCommand(x=int(parts[1]), y=int(parts[2])))
             elif line.startswith("wait "):
                 commands.append(WaitCommand(ms=int(line.split()[1])))
-            elif line.startswith("jump "):
-                parts = line.split()
-                commands.append(JumpCommand(x=int(parts[1]), y=int(parts[2])))
             elif line == "print board":
                 expected = []
                 i += 1
                 while i < len(lines) and lines[i].strip() and \
-                        not lines[i].strip().startswith(("click ", "wait ", "print ", "jump ")):
+                        not lines[i].strip().startswith(("click ", "wait ", "print ")):
                     expected.append(lines[i].strip())
                     i += 1
                 commands.append(PrintBoardCommand(expected_lines=tuple(expected)))

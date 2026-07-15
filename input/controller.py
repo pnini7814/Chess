@@ -10,12 +10,6 @@ class Controller:
         self._engine = engine
         self._mapper = mapper
 
-    def on_jump(self, state: GameState, x: int, y: int) -> None:
-        position = self._mapper.to_position(x, y)
-        if position is None:
-            return
-        self._engine.request_jump(state, position)
-
     def on_click(self, state: GameState, x: int, y: int) -> None:
         position = self._mapper.to_position(x, y)
 

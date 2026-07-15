@@ -48,10 +48,6 @@ class Piece(ABC):
     def state(self) -> PieceState:
         return self._state
 
-    @state.setter
-    def state(self, new_state: PieceState) -> None:
-        self._state = new_state
-
     def __str__(self) -> str:
         color_char = "w" if self._color == PieceColor.WHITE else "b"
         kind_char = self.kind[0].upper() if self.kind != "knight" else "N"

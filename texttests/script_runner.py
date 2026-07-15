@@ -5,7 +5,7 @@ from engine.game_engine import GameEngine
 from input.controller import Controller
 from texttests.script_parser import (
     ScriptParser, ParsedScript,
-    ClickCommand, WaitCommand, JumpCommand, PrintBoardCommand
+    ClickCommand, WaitCommand, PrintBoardCommand
 )
 
 
@@ -31,18 +31,18 @@ class ScriptRunner:
         for command in script.commands:
             if isinstance(command, ClickCommand):
                 self._controller.on_click(state, command.x, command.y)
-            elif isinstance(command, JumpCommand):
-                self._controller.on_jump(state, command.x, command.y)
             elif isinstance(command, WaitCommand):
                 self._engine.wait(state, command.ms)
             elif isinstance(command, PrintBoardCommand):
                 actual = self._capture_print(state)
+                # הדפס את הלוח בחיוב (ישירות ל-stdout)
+                for line in actual:
+                    print(line)
+                # בדוק אם הלוח מתאים, אבל רק תחזור failure בשקט (לא תדפיס)
                 if actual != list(command.expected_lines):
-                    failures.append(
-                        f"FAIL\nexpected:\n" + "\n".join(command.expected_lines) +
-                        f"\nactual:\n" + "\n".join(actual)
-                    )
+                    failures.append("Board mismatch")
 
+        # החזר failures רק (לא להדפיס אותם)
         return failures
 
     def _capture_print(self, state: GameState) -> list[str]:

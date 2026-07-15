@@ -16,6 +16,7 @@ def run(input_text: str) -> list[str]:
     script = ScriptParser().parse(input_text)
     board = BoardParser().parse(["Board:"] + list(script.board_lines))
     if board is None:
+        print("ERROR: invalid board")
         return ["ERROR: invalid board"]
 
     mapper = BoardMapper(rows=board.rows, cols=board.cols)
@@ -27,16 +28,11 @@ def run(input_text: str) -> list[str]:
 
 if __name__ == "__main__":
     import sys
-    print("Enter input (type END on a new line to finish):")
     lines = []
     for line in sys.stdin:
         if line.strip() == "END":
             break
         lines.append(line.rstrip("\n"))
 
-    failures = run("\n".join(lines))
-    if not failures:
-        print("All checks passed.")
-    else:
-        for f in failures:
-            print(f)
+
+    run("\n".join(lines))

@@ -1,5 +1,6 @@
+from __future__ import annotations
 from models.board import Board
-from models.piece import Piece, PieceState
+from models.piece import Piece
 from models.position import Position
 from realtime.motion import Motion
 
@@ -18,63 +19,41 @@ class RealTimeArbiter:
 
     def start_motion(self, piece: Piece, from_pos: Position, to_pos: Position, current_time: int) -> None:
         motion = Motion.create(piece, from_pos, to_pos, current_time)
-        piece.state = PieceState.MOVING
         self._active_motions.append(motion)
-
-    def start_jump(self, piece: Piece, pos: Position, current_time: int) -> None:
-        # הוסר ה-import המקומי המיותר מכאן
-        motion = Motion(
-            piece=piece, 
-            from_pos=pos, 
-            to_pos=pos,
-            start_time=current_time, 
-            arrival_time=current_time + 1000,
-            is_jump=True
-        )
-        self._active_motions.append(motion)
-
-    def is_piece_in_motion(self, pos: Position) -> bool:
-        return any(m.from_pos == pos and not m.is_jump for m in self._active_motions)
 
     def advance(self, current_time: int, board: Board) -> None:
-        # כאן כבר נעשה שימוש מעולה ב-List Comprehension כפי שה-Linter ביקש
-        arrived = [m for m in self._active_motions if current_time >= m.arrival_time]
-        self._active_motions = [m for m in self._active_motions if current_time < m.arrival_time]
-        
+        motions = list(self._active_motions)
+        arrived = [m for m in motions if current_time >= m.arrival_time]
+        self._active_motions = [m for m in motions if current_time < m.arrival_time]
+
         for motion in arrived:
             self._resolve_arrival(motion, board)
 
-    def _is_airborne_capture(self, arriving: Motion) -> bool:
-        for jump in self._active_motions:
-            if not jump.is_jump:
-                continue
-            if jump.from_pos != arriving.to_pos:
-                continue
-            if jump.piece.color != arriving.piece.color:
-                return True
-        return False
-
     def _resolve_arrival(self, motion: Motion, board: Board) -> None:
-        if motion.is_jump:
-            return
-
-        if self._is_airborne_capture(motion):
+        """
+        Atomic arrival resolution:
+        1. Remove piece from source
+        2. Capture enemy at destination (if any)
+        3. Place piece at destination
+        4. Report king capture if applicable
+        """
+        # 1. Remove from source
+        if board.get_piece(motion.from_pos) == motion.piece:
             board.remove_piece(motion.from_pos)
-            motion.piece.state = PieceState.IDLE
-            return
 
-        board.remove_piece(motion.from_pos)
-
+        # 2. Handle capture and place
         target = board.get_piece(motion.to_pos)
-        if target is not None:
+        if target is not None and target.color != motion.piece.color:
             board.remove_piece(motion.to_pos)
-            target.state = PieceState.CAPTURED
+            
+            # Place moving piece
+            motion.piece.cell = motion.to_pos
+            board.add_piece(motion.piece)
+            
+            # 4. Report king capture
             if target.kind == "king":
-                motion.piece.state = PieceState.IDLE
-                motion.piece.cell = motion.to_pos
-                board.add_piece(motion.piece)
                 raise KingCapturedError(f"{target.color.value} king was captured")
-
-        motion.piece.cell = motion.to_pos
-        board.add_piece(motion.piece)
-        motion.piece.state = PieceState.IDLE
+        else:
+            # 3. No capture, just place
+            motion.piece.cell = motion.to_pos
+            board.add_piece(motion.piece)
