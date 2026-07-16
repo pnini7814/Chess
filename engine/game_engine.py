@@ -25,6 +25,9 @@ class GameEngine:
         if state.game_over:
             return MoveResult(is_accepted=False, reason="game_over")
 
+        if self._arbiter.has_active_motion():
+            return MoveResult(is_accepted=False, reason="motion_in_progress")
+
         validation = self._rule_engine.validate(state.board, from_pos, to_pos)
         if not validation.is_valid:
             return MoveResult(is_accepted=False, reason=validation.reason)
@@ -42,23 +45,44 @@ class GameEngine:
         except KingCapturedError:
             state.game_over = True
 
-    def snapshot(self, state: GameState) -> GameSnapshot:
-        pieces = []
+    def _active_motions_map(self):
+        """Return a dict mapping piece -> Motion for active motions."""
+        active = []
+        if hasattr(self._arbiter, "get_active_motions"):
+            active = self._arbiter.get_active_motions()
+        return {m.piece: m for m in active}
+
+    def _piece_pixel(self, piece, row: int, col: int, state: GameState, motion_by_piece):
+        """Return (pixel_x, pixel_y) for a piece, using motion if present."""
+        m = motion_by_piece.get(piece)
+        if m is not None:
+            return m.pixel_position(state.current_time, CELL_SIZE)
+        return col * CELL_SIZE, row * CELL_SIZE
+
+    def _build_pieces(self, state: GameState, motion_by_piece) -> list[PieceSnapshot]:
+        pieces: list[PieceSnapshot] = []
         for row in range(state.board.rows):
             for col in range(state.board.cols):
                 piece = state.board.get_piece(Position(row, col))
-                if piece is not None:
-                    pieces.append(PieceSnapshot(
-                        kind=piece.kind,
-                        color=piece.color.value,
-                        pixel_x=col * CELL_SIZE,
-                        pixel_y=row * CELL_SIZE,
-                        state=piece.state.value,
-                    ))
+                if piece is None:
+                    continue
+                px, py = self._piece_pixel(piece, row, col, state, motion_by_piece)
+                pieces.append(PieceSnapshot(
+                    kind=piece.kind,
+                    color=piece.color.value,
+                    pixel_x=px,
+                    pixel_y=py,
+                    state=piece.state.value,
+                ))
+        return pieces
+
+    def snapshot(self, state: GameState) -> GameSnapshot:
+        motion_by_piece = self._active_motions_map()
+        pieces = tuple(self._build_pieces(state, motion_by_piece))
         return GameSnapshot(
             board_width=state.board.cols * CELL_SIZE,
             board_height=state.board.rows * CELL_SIZE,
-            pieces=tuple(pieces),
+            pieces=pieces,
             selected_cell=state.selected,
             game_over=state.game_over,
         )

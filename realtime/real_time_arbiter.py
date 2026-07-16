@@ -57,3 +57,6 @@ class RealTimeArbiter:
             # 3. No capture, just place
             motion.piece.cell = motion.to_pos
             board.add_piece(motion.piece)
+
+    def get_active_motions(self) -> list[Motion]:
+        return list(self._active_motions)
