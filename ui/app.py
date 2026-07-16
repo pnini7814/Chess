@@ -13,7 +13,7 @@ from engine.game_engine import GameEngine
 from input.board_mapper import BoardMapper
 from input.controller import Controller
 from models.game_state import GameState
-from realtime.real_time_arbiter import RealTimeArbiter
+from realtime.kung_fu_arbiter import KungFuArbiter
 from rules.rule_engine import RuleEngine
 from ui.rendering.board_view import BoardView
 from view.renderer import GameSnapshot
@@ -40,7 +40,7 @@ def load_initial_board() -> GameState:
 
 if __name__ == "__main__":
     rule_engine = RuleEngine()
-    arbiter = RealTimeArbiter()
+    arbiter = KungFuArbiter()  # Use KungFuArbiter for jump support
     engine = GameEngine(rule_engine, arbiter)
     state = load_initial_board()
     mapper = BoardMapper(rows=state.board.rows, cols=state.board.cols)
@@ -49,7 +49,14 @@ if __name__ == "__main__":
 
     window_name = "Kung Fu Chess"
     cv2.namedWindow(window_name)
-    cv2.setMouseCallback(window_name, lambda event, x, y, flags, param: controller.on_click(state, x, y) if event == cv2.EVENT_LBUTTONDOWN else None)
+    
+    def mouse_handler(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            controller.on_click(state, x, y)
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            controller.on_jump(state, x, y)
+    
+    cv2.setMouseCallback(window_name, mouse_handler)
 
     last_time = time.time()
     while True:

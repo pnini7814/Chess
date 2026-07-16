@@ -38,6 +38,23 @@ class GameEngine:
 
         self._arbiter.start_motion(piece, from_pos, to_pos, state.current_time)
         return MoveResult(is_accepted=True, reason="ok")
+    def request_jump(self, state: GameState, pos: Position) -> MoveResult:
+        if state.game_over:
+            return MoveResult(is_accepted=False, reason="game_over")
+
+        if self._arbiter.has_active_motion():
+            return MoveResult(is_accepted=False, reason="motion_in_progress")
+
+        piece = state.board.get_piece(pos)
+        if piece is None:
+            return MoveResult(is_accepted=False, reason="empty_source")
+
+        if not hasattr(self._arbiter, 'start_jump'):
+            return MoveResult(is_accepted=False, reason="jump_not_supported")
+
+        self._arbiter.start_jump(piece, pos, state.current_time)
+        return MoveResult(is_accepted=True, reason="ok")
+
     def wait(self, state: GameState, ms: int) -> None:
         state.current_time += ms
         try:

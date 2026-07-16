@@ -27,3 +27,10 @@ class Controller:
             if piece is None:
                 return
             state.select(position)
+
+    def on_jump(self, state: GameState, x: int, y: int) -> None:
+        """Handle jump command (right-click or special input)"""
+        position = self._mapper.to_position(x, y)
+        if position is None:
+            return
+        self._engine.request_jump(state, position)

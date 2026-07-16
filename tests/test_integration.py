@@ -10,6 +10,7 @@ from models.piece_factory import PieceFactory
 from rules.rule_engine import RuleEngine
 from engine.game_engine import GameEngine
 from realtime.real_time_arbiter import RealTimeArbiter
+from realtime.kung_fu_arbiter import KungFuArbiter
 from input.controller import Controller
 from input.board_mapper import BoardMapper
 
@@ -24,6 +25,10 @@ def make_board(pieces: dict, rows=8, cols=8) -> Board:
 
 def make_engine():
     return GameEngine(RuleEngine(), RealTimeArbiter())
+
+
+def make_kung_fu_engine():
+    return GameEngine(RuleEngine(), KungFuArbiter())
 
 
 class TestRuleEngine(unittest.TestCase):
@@ -118,14 +123,14 @@ class TestGameEngineRequestMove(unittest.TestCase):
     def test_request_jump_accepted(self):
         board = make_board({(0, 0): "wR"})
         state = GameState(board=board)
-        engine = make_engine()
+        engine = make_kung_fu_engine()
         result = engine.request_jump(state, Position(0, 0))
         self.assertTrue(result.is_accepted)
 
     def test_request_jump_empty_cell_rejected(self):
         board = make_board({})
         state = GameState(board=board)
-        engine = make_engine()
+        engine = make_kung_fu_engine()
         result = engine.request_jump(state, Position(0, 0))
         self.assertFalse(result.is_accepted)
         self.assertEqual(result.reason, "empty_source")
@@ -136,7 +141,7 @@ class TestController(unittest.TestCase):
     def setUp(self):
         self.board = make_board({(0, 0): "wR"}, rows=4, cols=4)
         self.state = GameState(board=self.board)
-        self.engine = make_engine()
+        self.engine = make_kung_fu_engine()
         self.mapper = BoardMapper(rows=4, cols=4)
         self.controller = Controller(self.engine, self.mapper)
 
