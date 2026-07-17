@@ -135,6 +135,23 @@ class TestGameEngineRequestMove(unittest.TestCase):
         self.assertFalse(result.is_accepted)
         self.assertEqual(result.reason, "empty_source")
 
+    def test_request_jump_allowed_while_other_piece_moves(self):
+        board = make_board({(0, 0): "wR", (0, 7): "wN"})
+        state = GameState(board=board)
+        engine = make_kung_fu_engine()
+        engine.request_move(state, Position(0, 0), Position(0, 5))
+        result = engine.request_jump(state, Position(0, 7))
+        self.assertTrue(result.is_accepted)
+
+    def test_request_jump_rejected_when_same_piece_in_motion(self):
+        board = make_board({(0, 0): "wR"})
+        state = GameState(board=board)
+        engine = make_kung_fu_engine()
+        engine.request_move(state, Position(0, 0), Position(0, 5))
+        result = engine.request_jump(state, Position(0, 0))
+        self.assertFalse(result.is_accepted)
+        self.assertEqual(result.reason, "piece_in_motion")
+
 
 class TestController(unittest.TestCase):
 

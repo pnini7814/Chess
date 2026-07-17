@@ -46,10 +46,19 @@ class Motion:
             return 1.0
         return (current_time - self.start_time) / self.duration_ms()
 
+    def jump_height_offset(self, current_time: int, cell_size: int = CELL_SIZE) -> int:
+        """Vertical lift during in-place jump: peaks at half a cell at progress 0.5."""
+        if not self.is_jump:
+            return 0
+        p = self.progress(current_time)
+        half_cell = cell_size / 2
+        return -int(round(half_cell * 4 * p * (1 - p)))
+
     def pixel_position(self, current_time: int, cell_size: int = CELL_SIZE) -> Tuple[int, int]:
         """
         Linear interpolate between from_pos and to_pos and return pixel coordinates (x, y).
         x = col * cell_size, y = row * cell_size.
+        Jump motions add a vertical arc (up half a cell and back down).
         """
         p = self.progress(current_time)
         start_x = self.from_pos.col * cell_size
@@ -59,4 +68,5 @@ class Motion:
 
         cur_x = int(round(start_x + (end_x - start_x) * p))
         cur_y = int(round(start_y + (end_y - start_y) * p))
+        cur_y += self.jump_height_offset(current_time, cell_size)
         return cur_x, cur_y

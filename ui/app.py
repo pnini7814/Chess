@@ -52,9 +52,7 @@ if __name__ == "__main__":
     
     def mouse_handler(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            controller.on_click(state, x, y)
-        elif event == cv2.EVENT_RBUTTONDOWN:
-            controller.on_jump(state, x, y)
+            controller.on_left_button(state, x, y)
     
     cv2.setMouseCallback(window_name, mouse_handler)
 

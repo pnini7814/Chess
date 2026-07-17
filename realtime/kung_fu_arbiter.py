@@ -5,6 +5,8 @@ from models.position import Position
 from models.queen import Queen
 from realtime.motion import Motion
 from realtime.real_time_arbiter import RealTimeArbiter, KingCapturedError
+from realtime.real_time_arbiter import RealTimeArbiter, KingCapturedError, COOLDOWN_MS
+
 
 
 class KungFuArbiter(RealTimeArbiter):
@@ -65,6 +67,9 @@ class KungFuArbiter(RealTimeArbiter):
             
             if target.kind == "king":
                 raise KingCapturedError(f"{target.color.value} king was captured")
+        self._cooldowns[motion.piece.id] = motion.arrival_time + COOLDOWN_MS
+
+        
 
     def _resolve_regular_arrival_with_airborne(self, motion: Motion, board: Board, arrived_in_tick: list[Motion]) -> None:
         """
@@ -127,6 +132,8 @@ class KungFuArbiter(RealTimeArbiter):
         else:
             motion.piece.cell = motion.to_pos
             board.add_piece(motion.piece)
+        self._cooldowns[motion.piece.id] = motion.arrival_time + COOLDOWN_MS
+
 
     def _should_promote(self, piece: Piece, to_pos: Position, board: Board) -> bool:
         """Check if pawn should be promoted (EXTRA FEATURE - Iteration 10)"""
